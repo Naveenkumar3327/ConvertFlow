@@ -80,35 +80,52 @@ export async function convertWithCLI(
       };
     }
 
-    // 2. Office files to PDF (LibreOffice)
-    if (["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(source) && target === "pdf") {
+    // 2. Office files to PDF OR PDF to Office documents (LibreOffice)
+    const isOfficeToPdf = ["docx", "doc", "xlsx", "xls", "pptx", "ppt"].includes(source) && target === "pdf";
+    const isPdfToOffice = source === "pdf" && ["docx", "doc", "xlsx", "xls", "pptx", "ppt", "txt"].includes(target);
+
+    if (isOfficeToPdf || isPdfToOffice) {
       const sofficeExists = await checkCommand("soffice");
       if (!sofficeExists) {
         throw new Error(
-          "LibreOffice Headless (soffice) not found on the system. Please install LibreOffice and add it to your system PATH to convert Office files to PDF."
+          "LibreOffice Headless (soffice) not found on the system. Please install LibreOffice and add it to your system PATH to enable Word/Excel/PPT/PDF document conversions."
         );
       }
 
+      // If converting PDF to text, use txt:Text format filter in LibreOffice
+      const filter = target === "txt" ? "txt:Text" : target;
+
       // LibreOffice conversion command (outputs to same directory)
-      const cmd = `soffice --headless --convert-to pdf --outdir "${TEMP_DIR}" "${tempInputPath}"`;
+      const cmd = `soffice --headless --convert-to ${filter} --outdir "${TEMP_DIR}" "${tempInputPath}"`;
       await execPromise(cmd);
 
-      // LibreOffice generates input_xxx.pdf
-      const generatedPdfName = tempInputName.replace(`.${source}`, ".pdf");
-      const generatedPdfPath = path.join(TEMP_DIR, generatedPdfName);
+      // LibreOffice generates input_xxx.<target>
+      const generatedFilename = tempInputName.replace(`.${source}`, `.${target}`);
+      const generatedFilePath = path.join(TEMP_DIR, generatedFilename);
 
-      if (!fs.existsSync(generatedPdfPath)) {
-        throw new Error("LibreOffice failed to generate PDF output");
+      if (!fs.existsSync(generatedFilePath)) {
+        throw new Error(`LibreOffice failed to generate ${target.toUpperCase()} output`);
       }
 
-      const outputBuffer = fs.readFileSync(generatedPdfPath);
+      const outputBuffer = fs.readFileSync(generatedFilePath);
       
-      // Clean up generated PDF file
-      fs.unlinkSync(generatedPdfPath);
+      // Clean up generated file
+      fs.unlinkSync(generatedFilePath);
+
+      const getDocMime = (t: string) => {
+        if (t === "pdf") return "application/pdf";
+        if (t === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (t === "doc") return "application/msword";
+        if (t === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (t === "xls") return "application/vnd.ms-excel";
+        if (t === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        if (t === "txt") return "text/plain";
+        return "application/octet-stream";
+      };
 
       return {
         buffer: outputBuffer,
-        mimeType: "application/pdf",
+        mimeType: getDocMime(target),
       };
     }
 
