@@ -8,16 +8,15 @@ import Activity from "@/models/Activity";
 // Rename or Soft-delete file
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: fileId } = await params;
     await connectDB();
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const fileId = params.id;
     const body = await req.json();
     const { displayFileName, isFavorite, isDeleted } = body;
 
