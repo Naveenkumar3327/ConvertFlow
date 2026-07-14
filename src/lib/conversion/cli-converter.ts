@@ -194,6 +194,35 @@ export async function convertWithCLI(
       };
     }
 
+    // 4. Image to PDF conversion (using native pdf-lib and sharp)
+    if (["png", "jpg", "jpeg", "webp"].includes(source) && target === "pdf") {
+      const sharp = require("sharp");
+      const img = sharp(inputBuffer);
+      const metadata = await img.metadata();
+      const width = metadata.width || 600;
+      const height = metadata.height || 800;
+
+      // Convert image to JPEG buffer first so pdf-lib can reliably embed it
+      const jpegBuffer = await img.jpeg({ quality: 90 }).toBuffer();
+
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([width, height]);
+      const embeddedImage = await pdfDoc.embedJpg(jpegBuffer);
+
+      page.drawImage(embeddedImage, {
+        x: 0,
+        y: 0,
+        width,
+        height,
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      return {
+        buffer: Buffer.from(pdfBytes),
+        mimeType: "application/pdf",
+      };
+    }
+
     throw new Error(`Unsupported CLI conversion path: ${sourceFormat} to ${targetFormat}`);
   } catch (err: any) {
     console.error("CLI conversion error:", err);
