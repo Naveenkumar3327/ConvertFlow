@@ -6,9 +6,10 @@ import User from "@/models/User";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await connectDB();
     const session = await getServerSession(authOptions);
 
@@ -23,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status state" }, { status: 400 });
     }
 
-    const targetUser = await User.findById(params.id);
+    const targetUser = await User.findById(id);
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
