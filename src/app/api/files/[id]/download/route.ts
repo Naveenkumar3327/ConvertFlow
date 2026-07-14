@@ -10,11 +10,11 @@ import { Readable } from "stream";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: fileId } = await params;
     await connectDB();
-    const fileId = params.id;
 
     // Fetch file metadata
     const fileDoc = await File.findById(fileId);
