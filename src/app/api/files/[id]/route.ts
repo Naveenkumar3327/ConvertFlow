@@ -92,16 +92,17 @@ export async function PATCH(
 // Move file to Trash
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await connectDB();
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const fileDoc = await File.findById(params.id);
+    const fileDoc = await File.findById(id);
     if (!fileDoc) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
